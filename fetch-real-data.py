@@ -14,13 +14,19 @@ import os, sys, argparse
 from datetime import date
 import requests
 import pandas as pd
+import streamlit as st
+
 
 API_BASE = "https://www.banxico.org.mx/SieAPIRest/service/v1/series"
 
 # >>> HARD-CODED FOR LOCAL TESTING (replace/rotate later) <<<
-DEFAULT_BANXICO_TOKEN = MY_API_SECRET
+
+
+DEFAULT_BANXICO_TOKEN = st.secrets["MY_API_SECRET"]
 DEFAULT_SPEI_COUNT_ID = "SF316454"   # Number of transactions (daily)
 DEFAULT_SPEI_VALUE_ID = "SF316455"   # Value of transactions (millions MXN, daily)
+
+
 # <<< ---------------------------------------------------- >>>
 
 def _log(msg, v): 
