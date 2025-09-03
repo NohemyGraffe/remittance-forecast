@@ -129,12 +129,7 @@ with st.sidebar:
     horizon = st.slider("Forecast horizon (weeks)", 1, 12, 4)
     use_cal = st.checkbox("Use calibration (cal_params.json if available)", value=True)
 
-    st.divider()
-    st.subheader("Data Source")
-    options = ["Sample (static)"]
-    if HAS_LIVE:
-        options.append("Banxico (live)")
-    src = st.radio("Choose data:", options, index=0)
+
 
     refresh = st.button("↻ Refresh (re-fetch & clear cache)")
 
@@ -146,22 +141,16 @@ if refresh:
 # Load data (one source)
 # -----------------------------
 try:
-    if src == "Banxico (live)":
-        with st.spinner("Fetching latest data from Banxico…"):
-            weekly_df = load_live_weekly(start="2018-01-01")
-        st.caption(
-            f"Live data • Latest week_end: {pd.to_datetime(weekly_df['week_end']).max().date()} • "
-            f"Last updated: {pd.Timestamp.utcnow():%Y-%m-%d %H:%M} UTC"
-        )
-    else:
-        weekly_df = load_sample_weekly()
-        st.caption(
-            f"Sample data • {len(weekly_df):,} rows • "
-            f"{pd.to_datetime(weekly_df['week_end']).min().date()} → {pd.to_datetime(weekly_df['week_end']).max().date()}"
-        )
+    with st.spinner("Fetching latest data from Banxico…"):
+        weekly_df = load_live_weekly(start="2018-01-01")
+    st.caption(
+        f"Live data • Latest week_end: {pd.to_datetime(weekly_df['week_end']).max().date()} • "
+        f"Last updated: {pd.Timestamp.utcnow():%Y-%m-%d %H:%M} UTC"
+    )
 except Exception as e:
-    st.error(str(e))
+    st.error(f"Could not fetch live data: {e}")
     st.stop()
+
 
 weekly_df["week_end"] = pd.to_datetime(weekly_df["week_end"]).dt.tz_localize(None)
 weekly_df = weekly_df.sort_values("week_end").reset_index(drop=True)
