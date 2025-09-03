@@ -33,12 +33,6 @@ def fmt_mxn_billions_from_millions(mn_mxn):
     b = (float(mn_mxn) * 1_000_000) / 1_000_000_000
     return f"${b:,.2f} B MXN"
 
-#def fmt_usd_from_millions_and_fx(mn_mxn, fx):
-    #if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
-     #   return "-"
-    #usd_mn = float(mn_mxn) / float(fx)  # USD (millions)
-   # return f"${usd_mn:,.1f} M USD"
-
 def pct(x):
     if pd.isna(x):
         return "-"
@@ -67,20 +61,15 @@ def fmt_mxn_compact_from_mn(mn_mxn):
     except Exception:
         return "-"
 
-def fmt_usd_in_millions_from_raw_mxn(mxn_val, fx):
-    """
-    Takes full MXN value + FX → returns formatted USD in millions.
-    """
+        
+def fmt_usd_from_mxn_millions(mxn_millions, fx):
     try:
-        if pd.isna(mxn_val) or pd.isna(fx) or float(fx) == 0:
+        if pd.isna(mxn_millions) or pd.isna(fx) or float(fx) == 0:
             return "-"
-        usd_total = float(mxn_val) / float(fx)             # full USD
-        usd_millions = usd_total / 1_000_000               # in millions
+        usd_millions = float(mxn_millions) / float(fx)
         return f"${usd_millions:,.1f} M USD"
     except Exception:
         return "-"
-
-
 
 
 # -----------------------------
@@ -230,7 +219,7 @@ with c2:
     st.metric("Value (MXN)", fmt_mxn_compact_from_mn(next_row.get("pred_value_mn_mxn")))
     
 with c3:
-   st.metric("Value (USD)", fmt_usd_in_millions_from_raw_mxn(
+  st.metric("Value (USD)", fmt_usd_from_mxn_millions(
     next_row.get("pred_value_mn_mxn"),
     next_row.get("fx_assumed")
 ))
