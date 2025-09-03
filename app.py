@@ -27,23 +27,19 @@ def fmt_int(x):
     except Exception:
         return "-"
 
-def fmt_mxn_billions_from_mn(mn_mxn):
-    """Input: MXN in millions. Output: '$x.xx B MXN'."""
+def fmt_mxn_billions_from_raw_mn(mn_mxn):
+    """Input: MXN in 'thousands of millions'. Output: '6.12 B MXN'."""
     try:
-        if pd.isna(mn_mxn):
-            return "-"
-        mxn_bn = float(mn_mxn) / 1_000  # millions → billions
-        return f"${mxn_bn:,.2f} B MXN"
+        mxn_bn = (float(mn_mxn) / 1000.0) / 1000.0
+        return f"{mxn_bn:.2f} B MXN"
     except Exception:
         return "-"
 
-def fmt_usd_millions_from_mn_and_fx(mn_mxn, fx):
-    """Input: MXN in millions + FX (MXN per USD). Output: '$x.x M USD'."""
+def fmt_usd_millions_from_raw_mn_and_fx(mn_mxn, fx):
+    """Input: MXN in 'thousands of millions' + FX. Output: '326.3 M USD'."""
     try:
-        if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) <= 0:
-            return "-"
-        usd_mn = float(mn_mxn) / float(fx)  # USD in millions
-        return f"${usd_mn:,.1f} M USD"
+        usd_mn = (float(mn_mxn) / 1000.0) / float(fx)
+        return f"{usd_mn:.1f} M USD"
     except Exception:
         return "-"
 
@@ -202,7 +198,6 @@ future_only = future_only.merge(
 )
 next_row = future_only.iloc[0]
 
-
 # -----------------------------
 # KPI cards
 # -----------------------------
@@ -213,14 +208,11 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.metric("Transactions (M)", fmt_count_millions(next_row.get("pred_tx"), 1))
 with c2:
-       st.metric("Value (MXN)", fmt_mxn_billions_from_mn(next_row.get("pred_value_mn_mxn")))
-
-
+      st.metric("Value (MXN)", fmt_mxn_billions_from_raw_mn(next_row.get("pred_value_mn_mxn")))
     
 with c3:
-    st.metric("Value (USD)", fmt_usd_millions_from_mn_and_fx(
-        next_row.get("pred_value_mn_mxn"),
-        next_row.get("fx_assumed")
+     st.metric("Value (USD)", fmt_usd_millions_from_raw_mn_and_fx(
+    next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")
     ))
 
 
