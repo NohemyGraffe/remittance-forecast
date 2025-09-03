@@ -267,7 +267,7 @@ st.divider()
 # -----------------------------
 # Plot 1: Weekly trend — last 26w actuals + forecast
 # -----------------------------
-st.subheader("📈 Weekly trend - Actuals vs Forecast")
+st.subheader("Weekly trend - Actuals vs Forecast")
 
 lookback_weeks = 26
 recent_hist = weekly_df.tail(lookback_weeks).copy()
