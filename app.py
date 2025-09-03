@@ -61,22 +61,19 @@ def fmt_count_millions(n, decimals=1):
         return "-"
 
 def fmt_mxn_compact_from_mn(mn_mxn):
-    """Input: MXN in millions. Output: '$x.xx B/T MXN'."""
     try:
-        bn = float(mn_mxn) / 1_000  # millions → billions
-        if bn >= 1000:
-            return f"${bn/1000:,.2f} T MXN"  # trillions if very large
-        return f"${bn:,.2f} B MXN"
+        bn = float(mn_mxn) / 1_000
+        return f"${bn:,.2f} B MXN"  # ✅ Always show billions
     except Exception:
         return "-"
 
 def fmt_usd_compact_from_mn_and_fx(mn_mxn, fx):
-    """Input: MXN millions + FX (MXN/USD). Output: '$x.x M/B USD'."""
+    """Input: MXN in millions + FX (MXN/USD). Output: USD in millions, always."""
     try:
-        usd_mn = float(mn_mxn) / float(fx)  # USD (millions)
-        if usd_mn >= 1000:
-            return f"${usd_mn/1000:,.1f} B USD"
-        return f"${usd_mn:,.1f} M USD"
+        if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
+            return "-"
+        usd_mn = float(mn_mxn) / float(fx)  # ✅ USD (millions)
+        return f"${usd_mn:,.2f} M USD"      # ✅ always millions
     except Exception:
         return "-"
 
