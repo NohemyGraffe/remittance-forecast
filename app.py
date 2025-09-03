@@ -275,42 +275,44 @@ ax1.grid(True)
 ax1.legend(loc="upper left")
 st.pyplot(fig1, clear_figure=True)
 
+
 # -----------------------------
-# Plot 2: Cash Needs — upcoming payout (USD millions; y-axis hidden)
+# Plot 2: Cash Needs — upcoming payout (USD, millions)
 # -----------------------------
+
+from matplotlib.ticker import FuncFormatter, MaxNLocator
+
 st.subheader("Cash Needs — Upcoming Payout (USD, millions)")
 
 cash_tbl = future_only.copy()
 if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
+    # Keep this the same math as the KPI: USD in **millions**
     cash_tbl["payout_usd_mn"] = cash_tbl["pred_value_mn_mxn"] / cash_tbl["fx_assumed"]
 else:
     cash_tbl["payout_usd_mn"] = np.nan
 
-fig2, ax2 = plt.subplots(figsize=(11, 3.8))
-x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
-ax2.bar(x_labels, cash_tbl["payout_usd_mn"])
-ax2.set_yticks([])
-ax2.set_xlabel("Week Ending (Sundays)")
-ax2.set_ylabel("USD (mn)")
-
-
 vals = cash_tbl["payout_usd_mn"]
-y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
+x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
 
-def format_usd_label(val_mn):
-    """Format USD value in millions or billions (short)."""
-    if val_mn >= 1000:   # 1000 M = 1 B
-        return f"{val_mn/1000:.1f} B"
-    else:
-        return f"{val_mn:.1f} M"
+fig2, ax2 = plt.subplots(figsize=(11, 3.8))
+bars = ax2.bar(x_labels, vals)
 
-for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
+# Axis label says the unit; ticks show compact integers (still in millions)
+ax2.set_ylabel("USD (M)")
+ax2.set_xlabel("Week Ending (Sundays)")
+ax2.yaxis.set_major_locator(MaxNLocator(nbins=6))
+ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, pos: f"{v:,.0f}"))
+
+# Short bar labels, always in millions (match KPI)
+y_max = np.nanmax(vals) if len(vals) else np.nan
+y_offset = max(y_max * 0.01, 0.02) if np.isfinite(y_max) else 0.02
+for i, y in enumerate(vals):
     if pd.notna(y):
-        ax2.text(i, y + y_offset, format_usd_label(y), ha="center", va="bottom", fontsize=9, weight="bold")
-
-
+        ax2.text(i, y + y_offset, f"{y:,.1f} M",
+                 ha="center", va="bottom", fontsize=9, weight="bold")
 
 st.pyplot(fig2, clear_figure=True)
+
 
 st.caption(
     "Notes: Total value (MXN, mn) = predicted transactions × recent avg ticket (MXN); "
