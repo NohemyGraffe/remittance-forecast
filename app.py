@@ -238,20 +238,38 @@ with c8:
     st.metric("FX Assumed (MXN per USD)", f"{fx_assumed:,.2f}" if pd.notna(fx_assumed) else "—")
 
 
-if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
-    st.caption(f"Avg ticket used: ${next_row['avg_ticket_mxn_used']:,.0f} MXN")
+# --- Average ticket display (normalized + consistency check) ---
 
-# Sanity check: avg USD per transaction, catches unit/FX slips
-if {"pred_value_mn_mxn","fx_assumed","pred_tx"}.issubset(next_row.index):
+# Optional: show the model's ticket if present (as-is, for transparency)
+if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
+    st.caption(f"Avg ticket (model param): ${next_row['avg_ticket_mxn_used']:,.0f} MXN")
+
+# Implied avg ticket from normalized totals (matches KPI/chart math)
+if {"pred_value_mn_mxn", "fx_assumed", "pred_tx"}.issubset(next_row.index):
     try:
-        usd_mn = float(next_row["pred_value_mn_mxn"]) / float(next_row["fx_assumed"])
-        avg_tx_usd = (usd_mn * 1_000_000) / max(float(next_row["pred_tx"]), 1.0)
-        if 50 <= avg_tx_usd <= 1000:
-            st.caption(f"Avg per transaction (sanity): ${avg_tx_usd:,.0f} USD")
-        else:
-            st.caption("⚠️ Avg per transaction looks off; recheck units/FX.")
+        tx = float(next_row["pred_tx"])
+        fx = float(next_row["fx_assumed"])
+        # Normalize: thousands of millions MXN -> millions MXN
+        mxn_mn_norm = float(next_row["pred_value_mn_mxn"]) / SCALE_K
+        usd_mn_norm = mxn_mn_norm / fx
+
+        avg_ticket_mxn = (mxn_mn_norm * 1_000_000) / max(tx, 1.0)
+        avg_ticket_usd = (usd_mn_norm * 1_000_000) / max(tx, 1.0)
+
+        st.caption(
+            f"Avg ticket (implied): ${avg_ticket_mxn:,.0f} MXN  (~${avg_ticket_usd:,.0f} USD)"
+        )
+
+        # Consistency check: compare implied ticket vs model param if available
+        if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
+            model_ticket = float(next_row["avg_ticket_mxn_used"])
+            if model_ticket > 0:
+                diff = abs(avg_ticket_mxn - model_ticket) / model_ticket
+                if diff > 0.5:  # >50% difference → likely a scaling mismatch
+                    st.caption("⚠️ Avg ticket (implied) and model param differ a lot — recheck units/FX.")
     except Exception:
         pass
+
 
 
 st.divider()
