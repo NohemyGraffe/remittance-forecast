@@ -18,7 +18,7 @@ import pandas as pd
 API_BASE = "https://www.banxico.org.mx/SieAPIRest/service/v1/series"
 
 # >>> HARD-CODED FOR LOCAL TESTING (replace/rotate later) <<<
-DEFAULT_BANXICO_TOKEN = "3ebbfb8b72d9f97a325fafc7098c0d54a2a12362b0a5708effb68538c98e6ced"
+DEFAULT_BANXICO_TOKEN = "MY_API_SECRET"
 DEFAULT_SPEI_COUNT_ID = "SF316454"   # Number of transactions (daily)
 DEFAULT_SPEI_VALUE_ID = "SF316455"   # Value of transactions (millions MXN, daily)
 # <<< ---------------------------------------------------- >>>
@@ -146,3 +146,4 @@ def fetch_weekly_from_banxico(
 
 if __name__ == "__main__":
     main()
+
