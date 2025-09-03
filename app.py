@@ -271,16 +271,34 @@ lookback_weeks = 26
 recent_hist = weekly_df.tail(lookback_weeks).copy()
 
 fig1, ax1 = plt.subplots(figsize=(11, 4))
-ax1.plot(recent_hist["week_end"], recent_hist["tx_count"], marker="o", linewidth=1.5, label="Actual Transactions")
-ax1.plot(future_only["week_end"], future_only["pred_tx"], marker="x", linewidth=2.0, label="Forecast Transactions")
+
+# Plot in millions
+ax1.plot(
+    recent_hist["week_end"],
+    recent_hist["tx_count"] / 1_000_000,
+    marker="o", linewidth=1.5,
+    label="Actual Transactions"
+)
+ax1.plot(
+    future_only["week_end"],
+    future_only["pred_tx"] / 1_000_000,
+    marker="x", linewidth=2.0,
+    label="Forecast Transactions"
+)
 if {"pred_low", "pred_high"}.issubset(future_only.columns):
-    ax1.fill_between(future_only["week_end"], future_only["pred_low"], future_only["pred_high"], alpha=0.2, label="Confidence band")
+    ax1.fill_between(
+        future_only["week_end"],
+        future_only["pred_low"] / 1_000_000,
+        future_only["pred_high"] / 1_000_000,
+        alpha=0.2, label="Confidence band"
+    )
+
 ax1.set_xlabel("Week Ending (Sundays)")
-ax1.set_ylabel("Transactions")
+ax1.set_ylabel("Transactions (M)")  # clearer, in millions
 ax1.grid(True)
 ax1.legend(loc="upper left")
-st.pyplot(fig1, clear_figure=True)
 
+st.pyplot(fig1, clear_figure=True)
 
 # -----------------------------
 # Plot 2: Cash Needs — upcoming payout (USD, millions)
