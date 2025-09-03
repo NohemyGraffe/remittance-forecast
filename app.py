@@ -33,11 +33,11 @@ def fmt_mxn_billions_from_millions(mn_mxn):
     b = (float(mn_mxn) * 1_000_000) / 1_000_000_000
     return f"${b:,.2f} B MXN"
 
-def fmt_usd_from_millions_and_fx(mn_mxn, fx):
-    if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
-        return "-"
-    usd_mn = float(mn_mxn) / float(fx)  # USD (millions)
-    return f"${usd_mn:,.2f} M USD"
+#def fmt_usd_from_millions_and_fx(mn_mxn, fx):
+    #if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
+     #   return "-"
+    #usd_mn = float(mn_mxn) / float(fx)  # USD (millions)
+   # return f"${usd_mn:,.1f} M USD"
 
 def pct(x):
     if pd.isna(x):
@@ -68,14 +68,15 @@ def fmt_mxn_compact_from_mn(mn_mxn):
         return "-"
 
 def fmt_usd_compact_from_mn_and_fx(mn_mxn, fx):
-    """Input: MXN in millions + FX (MXN/USD). Output: USD in **millions**, 1 decimal."""
+    """Format USD value in millions with 1 decimal. Input is MXN in millions."""
     try:
         if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
             return "-"
         usd_mn = float(mn_mxn) / float(fx)
-        return f"${usd_mn:,.1f} M USD"   # ✅ always millions, 1 decimal
+        return f"${usd_mn:,.1f} M USD"  # ✅ show millions only, 1 decimal
     except Exception:
         return "-"
+
 
 
 
@@ -224,10 +225,13 @@ with c1:
     st.metric("Transactions (M)", fmt_count_millions(next_row.get("pred_tx"), 1))
 with c2:
     st.metric("Value (MXN)", fmt_mxn_compact_from_mn(next_row.get("pred_value_mn_mxn")))
+    
 with c3:
     st.metric("Value (USD)", fmt_usd_compact_from_mn_and_fx(
-        next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")
+        next_row.get("pred_value_mn_mxn"),
+        next_row.get("fx_assumed")
     ))
+
 with c4:
     # was: if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
      if {"pred_low", "pred_high", "pred_tx"}.issubset(future_only.columns):
