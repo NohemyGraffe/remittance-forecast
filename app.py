@@ -188,6 +188,33 @@ future_only = future_only.merge(
 next_row = future_only.iloc[0]
 
 # -----------------------------
+# Custom CSS for highlighted KPI cards
+# -----------------------------
+st.markdown(
+    """
+    <style>
+    .card {
+        background-color: #f5f9ff;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(90, 124, 255, 0.10);
+        padding: 20px 10px 12px 10px;
+        margin-bottom: 10px;
+        border: 1.5px solid #e4e9f7;
+        transition: box-shadow 0.3s;
+    }
+    .card:hover {
+        box-shadow: 0 6px 24px rgba(90, 124, 255, 0.18);
+        border-color: #b2c5fa;
+    }
+    .card .stMetric {
+        text-align: center;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# -----------------------------
 # KPI cards
 # -----------------------------
 range_text = week_range_label(next_row["week_end"])
