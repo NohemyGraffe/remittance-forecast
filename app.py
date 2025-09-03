@@ -298,7 +298,9 @@ vals = cash_tbl["payout_usd_mn"]
 y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
 for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
     if pd.notna(y):
-        ax2.text(i, y + y_offset, f"{y:,.0f}", ha="center", va="bottom", fontsize=9, weight="bold")
+        label = f"{y:,.1f} M"   # show with 1 decimal, in millions
+        ax2.text(i, y + y_offset, label, ha="center", va="bottom", fontsize=9, weight="bold")
+
 
 
 st.pyplot(fig2, clear_figure=True)
