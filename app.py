@@ -296,10 +296,17 @@ ax2.set_ylabel("USD (mn)")
 
 vals = cash_tbl["payout_usd_mn"]
 y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
+
+def format_usd_label(val_mn):
+    """Format USD value in millions or billions (short)."""
+    if val_mn >= 1000:   # 1000 M = 1 B
+        return f"{val_mn/1000:.1f} B"
+    else:
+        return f"{val_mn:.1f} M"
+
 for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
     if pd.notna(y):
-        label = f"{y:,.1f} M"   # show with 1 decimal, in millions
-        ax2.text(i, y + y_offset, label, ha="center", va="bottom", fontsize=9, weight="bold")
+        ax2.text(i, y + y_offset, format_usd_label(y), ha="center", va="bottom", fontsize=9, weight="bold")
 
 
 
