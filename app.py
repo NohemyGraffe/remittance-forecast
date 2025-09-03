@@ -33,12 +33,6 @@ def fmt_mxn_billions_from_millions(mn_mxn):
     b = (float(mn_mxn) * 1_000_000) / 1_000_000_000
     return f"${b:,.2f} B MXN"
 
-#def fmt_usd_from_millions_and_fx(mn_mxn, fx):
- #   if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
-  #      return "-"
-   # usd = (float(mn_mxn) * 1_000_000) / float(fx)
-    #return f"${usd/1_000_000:,.2f} USD"
-
 def fmt_usd_from_millions_and_fx(mn_mxn, fx):
     if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
         return "-"
@@ -59,6 +53,33 @@ def week_range_label(week_end_ts: pd.Timestamp) -> str:
     start_str = start.strftime("%b %-d, %Y") if os.name != "nt" else start.strftime("%b %#d, %Y")
     end_str   = end.strftime("%b %-d, %Y")   if os.name != "nt" else end.strftime("%b %#d, %Y")
     return f"{start_str} – {end_str}"
+
+def fmt_count_millions(n, decimals=1):
+    try:
+        return f"{float(n)/1_000_000:.{decimals}f}M"
+    except Exception:
+        return "-"
+
+def fmt_mxn_compact_from_mn(mn_mxn):
+    """Input: MXN in millions. Output: '$x.xx B/T MXN'."""
+    try:
+        bn = float(mn_mxn) / 1_000  # millions → billions
+        if bn >= 1000:
+            return f"${bn/1000:,.2f} T MXN"  # trillions if very large
+        return f"${bn:,.2f} B MXN"
+    except Exception:
+        return "-"
+
+def fmt_usd_compact_from_mn_and_fx(mn_mxn, fx):
+    """Input: MXN millions + FX (MXN/USD). Output: '$x.x M/B USD'."""
+    try:
+        usd_mn = float(mn_mxn) / float(fx)  # USD (millions)
+        if usd_mn >= 1000:
+            return f"${usd_mn/1000:,.1f} B USD"
+        return f"${usd_mn:,.1f} M USD"
+    except Exception:
+        return "-"
+
 
 # -----------------------------
 # Streamlit config
@@ -202,11 +223,13 @@ st.subheader(f"📅 Next Forecasted Week — {range_text}")
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    st.metric("Total Transactions (predicted)", fmt_int(next_row.get("pred_tx")))
+    st.metric("Transactions (M)", fmt_count_millions(next_row.get("pred_tx"), 1))
 with c2:
-    st.metric("Total Value (MXN, billions)", fmt_mxn_billions_from_millions(next_row.get("pred_value_mn_mxn")))
+    st.metric("Value (MXN)", fmt_mxn_compact_from_mn(next_row.get("pred_value_mn_mxn")))
 with c3:
-    st.metric("Total Value (USD, millions)", fmt_usd_from_millions_and_fx(next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")))
+    st.metric("Value (USD)", fmt_usd_compact_from_mn_and_fx(
+        next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")
+    ))
 with c4:
     # was: if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
      if {"pred_low", "pred_high", "pred_tx"}.issubset(future_only.columns):
