@@ -18,8 +18,6 @@ try:
 except Exception:
     HAS_LIVE = False
 
-
-
 # -----------------------------
 # Small helpers for display
 # -----------------------------
@@ -32,13 +30,13 @@ def fmt_int(x):
 def fmt_mxn_billions_from_millions(mn_mxn):
     if pd.isna(mn_mxn):
         return "-"
-    b = (float(mn_mxn) * 1_000_000) / 1_000_000_000  # millions -> billions
+    b = (float(mn_mxn) * 1_000_000) / 1_000_000_000
     return f"${b:,.2f} B MXN"
 
 def fmt_usd_from_millions_and_fx(mn_mxn, fx):
     if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
         return "-"
-    usd = (float(mn_mxn) * 1_000_000) / float(fx)  # MXN -> USD
+    usd = (float(mn_mxn) * 1_000_000) / float(fx)
     return f"${usd/1_000_000:,.2f} USD"
 
 def pct(x):
@@ -50,10 +48,8 @@ def pct(x):
         return "-"
 
 def week_range_label(week_end_ts: pd.Timestamp) -> str:
-    """Return 'Mon – Sun, Mon DD, YYYY – Mon DD, YYYY'."""
     end = pd.Timestamp(week_end_ts).normalize()
     start = end - pd.Timedelta(days=6)
-    # Windows needs %#d instead of %-d
     start_str = start.strftime("%b %-d, %Y") if os.name != "nt" else start.strftime("%b %#d, %Y")
     end_str   = end.strftime("%b %-d, %Y")   if os.name != "nt" else end.strftime("%b %#d, %Y")
     return f"{start_str} – {end_str}"
@@ -70,6 +66,43 @@ st.caption(
 )
 
 # -----------------------------
+# Token resolver
+# -----------------------------
+def get_banxico_token() -> str:
+    """
+    Prefer Streamlit secrets, then env vars.
+    Expects `.streamlit/secrets.toml` to contain:
+      DEFAULT_BANXICO_TOKEN = "your_token_here"
+    """
+    tok = None
+    try:
+        # Will raise KeyError if not present
+        tok = st.secrets.get("DEFAULT_BANXICO_TOKEN")
+    except Exception:
+        # st.secrets may not exist outside Streamlit runtime; ignore
+        pass
+
+    if not tok:
+        tok = os.getenv("BANXICO_TOKEN") or os.getenv("DEFAULT_BANXICO_TOKEN")
+
+    if not tok:
+        # Helpful message + optionally show available keys
+        available = []
+        try:
+            available = list(st.secrets.keys())
+        except Exception:
+            pass
+        msg = (
+            'DEFAULT_BANXICO_TOKEN not found.\n'
+            'Add it to `.streamlit/secrets.toml` like:\n\n'
+            'DEFAULT_BANXICO_TOKEN = "your_token_here"\n\n'
+            f"(Detected secrets keys: {available})"
+        )
+        st.error(msg)
+        st.stop()
+    return tok
+
+# -----------------------------
 # Cached loaders
 # -----------------------------
 @st.cache_data(ttl=24*60*60)
@@ -80,14 +113,12 @@ def load_sample_weekly():
         raise FileNotFoundError(f"Sample file not found at: {sample_path}")
     return pd.read_csv(sample_path, parse_dates=["week_end"])
 
-@st.cache_data(ttl=6*60*60)  # live cache: 6 hours (adjust as you like)
+@st.cache_data(ttl=6*60*60)  # live cache: 6 hours
 def load_live_weekly(start="2018-01-01"):
     if not HAS_LIVE:
         raise RuntimeError("Live mode not available: fetch_weekly_from_banxico not imported.")
-    token = st.secrets["DEFAULT_BANXICO_TOKEN"]
-    if not token:
-        raise RuntimeError("DEFAULT_BANXICO_TOKEN is not set in Streamlit secrets.")
-    df = fetch_weekly_from_banxico(start="2018-01-01", token=token)
+    token = get_banxico_token()
+    df = fetch_weekly_from_banxico(start=start, token=token)
     return df
 
 # -----------------------------
@@ -95,7 +126,7 @@ def load_live_weekly(start="2018-01-01"):
 # -----------------------------
 with st.sidebar:
     st.header("Controls")
-    horizon = st.slider("Forecast horizon (weeks)", 1, 12, 4)  # 1 = “real next week”
+    horizon = st.slider("Forecast horizon (weeks)", 1, 12, 4)
     use_cal = st.checkbox("Use calibration (cal_params.json if available)", value=True)
 
     st.divider()
@@ -154,7 +185,6 @@ if use_cal:
 hist_last = weekly_df["week_end"].max()
 future_only = fc[fc["week_end"] > hist_last].copy().sort_values("week_end")
 if future_only.empty:
-    # If predict returns only horizon tail, just use it
     future_only = fc.copy().sort_values("week_end")
 
 cal_flags_future = _make_calendar_flags(future_only["week_end"])
@@ -162,11 +192,10 @@ future_only = future_only.merge(
     cal_flags_future[["week_end", "is_payweek", "is_holiday_us", "is_holiday_mx"]],
     on="week_end", how="left"
 )
-
 next_row = future_only.iloc[0]
 
 # -----------------------------
-# KPI cards: Next Forecasted Week (show calendar range)
+# KPI cards
 # -----------------------------
 range_text = week_range_label(next_row["week_end"])
 st.subheader(f"📅 Next Forecasted Week — {range_text}")
@@ -234,14 +263,9 @@ else:
 fig2, ax2 = plt.subplots(figsize=(11, 3.8))
 x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
 ax2.bar(x_labels, cash_tbl["payout_usd_mn"])
-
-# Hide y-axis labels and ticks
-ax2.set_yticks([])
-ax2.set_ylabel("")
-ax2.grid(False)
+ax2.set_yticks([]); ax2.set_ylabel(""); ax2.grid(False)
 ax2.set_xlabel("Week Ending (Sundays)")
 
-# Labels on bars
 vals = cash_tbl["payout_usd_mn"]
 y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
 for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
