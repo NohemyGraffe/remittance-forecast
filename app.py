@@ -33,11 +33,17 @@ def fmt_mxn_billions_from_millions(mn_mxn):
     b = (float(mn_mxn) * 1_000_000) / 1_000_000_000
     return f"${b:,.2f} B MXN"
 
+#def fmt_usd_from_millions_and_fx(mn_mxn, fx):
+ #   if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
+  #      return "-"
+   # usd = (float(mn_mxn) * 1_000_000) / float(fx)
+    #return f"${usd/1_000_000:,.2f} USD"
+
 def fmt_usd_from_millions_and_fx(mn_mxn, fx):
     if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
         return "-"
-    usd = (float(mn_mxn) * 1_000_000) / float(fx)
-    return f"${usd/1_000_000:,.2f} USD"
+    usd_mn = float(mn_mxn) / float(fx)  # USD (millions)
+    return f"${usd_mn:,.2f} M USD"
 
 def pct(x):
     if pd.isna(x):
@@ -187,32 +193,6 @@ future_only = future_only.merge(
 )
 next_row = future_only.iloc[0]
 
-# -----------------------------
-# Custom CSS for highlighted KPI cards
-# -----------------------------
-st.markdown(
-    """
-    <style>
-    .card {
-        background-color: #f5f9ff;
-        border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(90, 124, 255, 0.10);
-        padding: 20px 10px 12px 10px;
-        margin-bottom: 10px;
-        border: 1.5px solid #e4e9f7;
-        transition: box-shadow 0.3s;
-    }
-    .card:hover {
-        box-shadow: 0 6px 24px rgba(90, 124, 255, 0.18);
-        border-color: #b2c5fa;
-    }
-    .card .stMetric {
-        text-align: center;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # -----------------------------
 # KPI cards
