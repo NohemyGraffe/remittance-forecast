@@ -198,6 +198,8 @@ future_only = future_only.merge(
 )
 next_row = future_only.iloc[0]
 
+st.divider()
+
 # -----------------------------
 # KPI cards
 # -----------------------------
@@ -315,6 +317,7 @@ ax1.legend(loc="upper left")
 
 st.pyplot(fig1, clear_figure=True)
 
+st.divider()
 # -----------------------------
 # Plot 2: Cash needs - upcoming payout (USD, millions)
 # -----------------------------
