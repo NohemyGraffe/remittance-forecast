@@ -1,2 +1,2 @@
 # remittance-forecast
-Goal (default): predict daily net remittance volume (USD) for the next 7 days, for corridor US→MX.
+A lightweight forecasting prototype for US→MX remittances that predicts next-7-day transactions and value. It combines calendar effects (US/MX holidays, pay cycles), FX sensitivity, and rolling conformal intervals, with a Streamlit front-end for KPIs and banded forecasts. Built with open proxy data from Banxico—designed to demonstrate production-minded modeling and observability.
