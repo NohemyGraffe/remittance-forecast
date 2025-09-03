@@ -1,0 +1,13 @@
+{
+  "kind": "relative",
+  "q": 0.136,
+  "alpha": 0.05,
+  "feat": "fx",
+  "mode": "additive",
+  "yearly": 8,
+  "cp": 0.05,
+  "folds": 26,
+  "mape_point": 6.157,
+  "seasonality_prior_scale": 10,
+  "holidays_prior_scale": 10
+}
