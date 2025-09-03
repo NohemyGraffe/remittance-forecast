@@ -58,13 +58,6 @@ def fmt_count_millions(n, decimals=1):
     except Exception:
         return "-"
 
-def fmt_mxn_compact_from_mn(mn_mxn):
-    try:
-        bn = float(mn_mxn) / 1_000
-        return f"${bn:,.2f} B MXN"  # ✅ Always show billions
-    except Exception:
-        return "-"
-
         
 def fmt_usd_millions_from_mn_and_fx(mn_mxn, fx):
     """Input: MXN in millions + FX (MXN per USD). Output: '$x.x M USD'."""
