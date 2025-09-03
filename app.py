@@ -286,8 +286,9 @@ st.subheader("Cash Needs — Upcoming Payout (USD, millions)")
 
 cash_tbl = future_only.copy()
 if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
-    # Keep this the same math as the KPI: USD in **millions**
-    cash_tbl["payout_usd_mn"] = cash_tbl["pred_value_mn_mxn"] / cash_tbl["fx_assumed"]
+    SCALE_K = 1000.0  # dataset stores "thousands of millions"
+    # Normalize the same as KPI: convert to millions of USD
+    cash_tbl["payout_usd_mn"] = (cash_tbl["pred_value_mn_mxn"] / SCALE_K) / cash_tbl["fx_assumed"]
 else:
     cash_tbl["payout_usd_mn"] = np.nan
 
@@ -297,13 +298,13 @@ x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
 fig2, ax2 = plt.subplots(figsize=(11, 3.8))
 bars = ax2.bar(x_labels, vals)
 
-# Axis label says the unit; ticks show compact integers (still in millions)
+# Axis label in millions, ticks compact
 ax2.set_ylabel("USD (M)")
 ax2.set_xlabel("Week Ending (Sundays)")
 ax2.yaxis.set_major_locator(MaxNLocator(nbins=6))
 ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, pos: f"{v:,.0f}"))
 
-# Short bar labels, always in millions (match KPI)
+# Bar labels in millions, short format like KPI
 y_max = np.nanmax(vals) if len(vals) else np.nan
 y_offset = max(y_max * 0.01, 0.02) if np.isfinite(y_max) else 0.02
 for i, y in enumerate(vals):
