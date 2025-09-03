@@ -18,6 +18,8 @@ try:
 except Exception:
     HAS_LIVE = False
 
+
+
 # -----------------------------
 # Small helpers for display
 # -----------------------------
@@ -82,10 +84,10 @@ def load_sample_weekly():
 def load_live_weekly(start="2018-01-01"):
     if not HAS_LIVE:
         raise RuntimeError("Live mode not available: fetch_weekly_from_banxico not imported.")
-    token = st.secrets.get("DEFAULT_BANXICO_TOKEN")
+    token = st.secrets["DEFAULT_BANXICO_TOKEN"]
     if not token:
         raise RuntimeError("DEFAULT_BANXICO_TOKEN is not set in Streamlit secrets.")
-    df = fetch_weekly_from_banxico(start=start, token=token)
+    df = fetch_weekly_from_banxico(start="2018-01-01", token=token)
     return df
 
 # -----------------------------
