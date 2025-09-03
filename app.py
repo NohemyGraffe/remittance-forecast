@@ -46,13 +46,14 @@ def fmt_usd_millions_from_mxn_mn(mn_mxn, fx_mxn_per_usd):
     except Exception:
         return "-"
 
-def fmt_pct_±rel(low, mid, high):
+def fmt_pct_rel(low, mid, high):
     try:
         span = float(high) - float(low)
         denom = max(float(mid), 1.0)
         return f"{(span / denom / 2.0)*100:.1f}%"
     except Exception:
         return "—"
+
 
 
 # -----------------------------
@@ -201,9 +202,9 @@ with c3:
     ))
 with c4:
     if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
-        st.metric("Uncertainty (± relative)", fmt_pct_±rel(
-            next_row["pred_low"], next_row["pred_tx"], next_row["pred_high"]
-        ))
+        st.metric("Uncertainty (± relative)", fmt_pct_rel(
+         next_row["pred_low"], next_row["pred_tx"], next_row["pred_high"]))
+
     else:
         st.metric("Uncertainty (± relative)", "—")
 
