@@ -222,7 +222,7 @@ with c4:
     # was: if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
      if {"pred_low", "pred_high", "pred_tx"}.issubset(future_only.columns):
          rel = (next_row["pred_high"] - next_row["pred_low"]) / max(next_row["pred_tx"], 1.0)
-         st.metric("Forecast margin of error)", pct(rel / 2.0))
+         st.metric("Forecast margin of error", pct(rel / 2.0))
      else:
           st.metric("Forecast margin of error", "—")
 
