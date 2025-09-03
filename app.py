@@ -68,14 +68,15 @@ def fmt_mxn_compact_from_mn(mn_mxn):
         return "-"
 
 def fmt_usd_compact_from_mn_and_fx(mn_mxn, fx):
-    """Input: MXN in millions + FX (MXN/USD). Output: USD in millions, always."""
+    """Input: MXN in millions + FX (MXN/USD). Output: USD in **millions**, 1 decimal."""
     try:
         if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
             return "-"
-        usd_mn = float(mn_mxn) / float(fx)  # ✅ USD (millions)
-        return f"${usd_mn:,.2f} M USD"      # ✅ always millions
+        usd_mn = float(mn_mxn) / float(fx)
+        return f"${usd_mn:,.1f} M USD"   # ✅ always millions, 1 decimal
     except Exception:
         return "-"
+
 
 
 # -----------------------------
