@@ -67,13 +67,16 @@ def fmt_mxn_compact_from_mn(mn_mxn):
     except Exception:
         return "-"
 
-def fmt_usd_compact_from_mn_and_fx(mn_mxn, fx):
-    """Format USD value in millions with 1 decimal. Input is MXN in millions."""
+def fmt_usd_in_millions_from_raw_mxn(mxn_val, fx):
+    """
+    Takes full MXN value + FX → returns formatted USD in millions.
+    """
     try:
-        if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
+        if pd.isna(mxn_val) or pd.isna(fx) or float(fx) == 0:
             return "-"
-        usd_mn = float(mn_mxn) / float(fx)
-        return f"${usd_mn:,.1f} M USD"  # ✅ show millions only, 1 decimal
+        usd_total = float(mxn_val) / float(fx)             # full USD
+        usd_millions = usd_total / 1_000_000               # in millions
+        return f"${usd_millions:,.1f} M USD"
     except Exception:
         return "-"
 
@@ -227,10 +230,11 @@ with c2:
     st.metric("Value (MXN)", fmt_mxn_compact_from_mn(next_row.get("pred_value_mn_mxn")))
     
 with c3:
-    st.metric("Value (USD)", fmt_usd_compact_from_mn_and_fx(
-        next_row.get("pred_value_mn_mxn"),
-        next_row.get("fx_assumed")
-    ))
+   st.metric("Value (USD)", fmt_usd_in_millions_from_raw_mxn(
+    next_row.get("pred_value_mn_mxn"),
+    next_row.get("fx_assumed")
+))
+
 
 with c4:
     # was: if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
