@@ -1,0 +1,254 @@
+import os
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import streamlit as st
+import matplotlib.pyplot as plt
+
+from predict_weekly import (
+    train_and_forecast,
+    _make_calendar_flags,
+    _apply_calibration,
+)
+
+# Live fetch (Banxico)
+try:
+    from fetch_real_data import fetch_weekly_from_banxico
+    HAS_LIVE = True
+except Exception:
+    HAS_LIVE = False
+
+# -----------------------------
+# Small helpers for display
+# -----------------------------
+def fmt_int(x):
+    try:
+        return f"{int(round(float(x))):,}"
+    except Exception:
+        return "-"
+
+def fmt_mxn_billions_from_millions(mn_mxn):
+    if pd.isna(mn_mxn):
+        return "-"
+    b = (float(mn_mxn) * 1_000_000) / 1_000_000_000  # millions -> billions
+    return f"${b:,.2f} B MXN"
+
+def fmt_usd_from_millions_and_fx(mn_mxn, fx):
+    if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
+        return "-"
+    usd = (float(mn_mxn) * 1_000_000) / float(fx)  # MXN -> USD
+    return f"${usd/1_000_000:,.2f} USD"
+
+def pct(x):
+    if pd.isna(x):
+        return "-"
+    try:
+        return f"{float(x)*100:.1f}%"
+    except Exception:
+        return "-"
+
+def week_range_label(week_end_ts: pd.Timestamp) -> str:
+    """Return 'Mon – Sun, Mon DD, YYYY – Mon DD, YYYY'."""
+    end = pd.Timestamp(week_end_ts).normalize()
+    start = end - pd.Timedelta(days=6)
+    # Windows needs %#d instead of %-d
+    start_str = start.strftime("%b %-d, %Y") if os.name != "nt" else start.strftime("%b %#d, %Y")
+    end_str   = end.strftime("%b %-d, %Y")   if os.name != "nt" else end.strftime("%b %#d, %Y")
+    return f"{start_str} – {end_str}"
+
+# -----------------------------
+# Streamlit config
+# -----------------------------
+st.set_page_config(page_title="Remittance Forecast (Weekly)", layout="wide")
+st.title("Remittance Forecast — Weekly (Business View)")
+st.caption(
+    "This dashboard shows a weekly cash & volume forecast using a domestic transfer proxy (SPEI) "
+    "with calendar and FX effects. It’s designed for business users. Technical details and model "
+    "performance live in the project README."
+)
+
+# -----------------------------
+# Cached loaders
+# -----------------------------
+@st.cache_data(ttl=24*60*60)
+def load_sample_weekly():
+    base = Path(__file__).parent
+    sample_path = base / "sample_data" / "transactions_weekly.csv"
+    if not sample_path.exists():
+        raise FileNotFoundError(f"Sample file not found at: {sample_path}")
+    return pd.read_csv(sample_path, parse_dates=["week_end"])
+
+@st.cache_data(ttl=6*60*60)  # live cache: 6 hours (adjust as you like)
+def load_live_weekly(start="2018-01-01"):
+    if not HAS_LIVE:
+        raise RuntimeError("Live mode not available: fetch_weekly_from_banxico not imported.")
+    token = st.secrets.get("BANXICO_TOKEN")
+    if not token:
+        raise RuntimeError("BANXICO_TOKEN is not set in Streamlit secrets.")
+    df = fetch_weekly_from_banxico(start=start, token=token)
+    return df
+
+# -----------------------------
+# Sidebar controls
+# -----------------------------
+with st.sidebar:
+    st.header("Controls")
+    horizon = st.slider("Forecast horizon (weeks)", 1, 12, 4)  # 1 = “real next week”
+    use_cal = st.checkbox("Use calibration (cal_params.json if available)", value=True)
+
+    st.divider()
+    st.subheader("Data Source")
+    options = ["Sample (static)"]
+    if HAS_LIVE:
+        options.append("Banxico (live)")
+    src = st.radio("Choose data:", options, index=0)
+
+    refresh = st.button("↻ Refresh (re-fetch & clear cache)")
+
+# Clear caches if user clicked refresh
+if refresh:
+    st.cache_data.clear()
+
+# -----------------------------
+# Load data (one source)
+# -----------------------------
+try:
+    if src == "Banxico (live)":
+        with st.spinner("Fetching latest data from Banxico…"):
+            weekly_df = load_live_weekly(start="2018-01-01")
+        st.caption(
+            f"Live data • Latest week_end: {pd.to_datetime(weekly_df['week_end']).max().date()} • "
+            f"Last updated: {pd.Timestamp.utcnow():%Y-%m-%d %H:%M} UTC"
+        )
+    else:
+        weekly_df = load_sample_weekly()
+        st.caption(
+            f"Sample data • {len(weekly_df):,} rows • "
+            f"{pd.to_datetime(weekly_df['week_end']).min().date()} → {pd.to_datetime(weekly_df['week_end']).max().date()}"
+        )
+except Exception as e:
+    st.error(str(e))
+    st.stop()
+
+weekly_df["week_end"] = pd.to_datetime(weekly_df["week_end"]).dt.tz_localize(None)
+weekly_df = weekly_df.sort_values("week_end").reset_index(drop=True)
+
+# -----------------------------
+# Forecast
+# -----------------------------
+fc = train_and_forecast(weekly_df, horizon_weeks=horizon, ticket_window=8)
+
+# Optional calibration
+if use_cal:
+    try:
+        cal_path = Path(__file__).parent / "cal_params.json"
+        fc = _apply_calibration(fc, str(cal_path) if cal_path.exists() else None)
+    except Exception as e:
+        st.warning(f"Calibration skipped: {e}")
+
+# -----------------------------
+# Prepare future rows + flags
+# -----------------------------
+hist_last = weekly_df["week_end"].max()
+future_only = fc[fc["week_end"] > hist_last].copy().sort_values("week_end")
+if future_only.empty:
+    # If predict returns only horizon tail, just use it
+    future_only = fc.copy().sort_values("week_end")
+
+cal_flags_future = _make_calendar_flags(future_only["week_end"])
+future_only = future_only.merge(
+    cal_flags_future[["week_end", "is_payweek", "is_holiday_us", "is_holiday_mx"]],
+    on="week_end", how="left"
+)
+
+next_row = future_only.iloc[0]
+
+# -----------------------------
+# KPI cards: Next Forecasted Week (show calendar range)
+# -----------------------------
+range_text = week_range_label(next_row["week_end"])
+st.subheader(f"📅 Next Forecasted Week — {range_text}")
+
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    st.metric("Total Transactions (predicted)", fmt_int(next_row.get("pred_tx")))
+with c2:
+    st.metric("Total Value (MXN)", fmt_mxn_billions_from_millions(next_row.get("pred_value_mn_mxn")))
+with c3:
+    st.metric("Total Value (USD)", fmt_usd_from_millions_and_fx(next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")))
+with c4:
+    if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
+        rel = (next_row["pred_high"] - next_row["pred_low"]) / max(next_row["pred_tx"], 1.0)
+        st.metric("Uncertainty (± relative)", pct(rel / 2.0))
+    else:
+        st.metric("Uncertainty (± relative)", "—")
+
+c5, c6, c7, c8 = st.columns(4)
+with c5:
+    st.metric("US Payweek in window?", "Yes" if int(next_row.get("is_payweek", 0)) == 1 else "No")
+with c6:
+    st.metric("US Holiday in week?", "Yes" if int(next_row.get("is_holiday_us", 0)) == 1 else "No")
+with c7:
+    st.metric("MX Holiday in week?", "Yes" if int(next_row.get("is_holiday_mx", 0)) == 1 else "No")
+with c8:
+    fx_assumed = next_row.get("fx_assumed", np.nan)
+    st.metric("FX Assumed (USD/MXN)", f"{fx_assumed:,.2f}" if pd.notna(fx_assumed) else "—")
+
+if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
+    st.caption(f"Avg ticket used: ${next_row['avg_ticket_mxn_used']:,.0f} MXN")
+
+st.divider()
+
+# -----------------------------
+# Plot 1: Weekly Trend — last 26w actuals + forecast
+# -----------------------------
+st.subheader("📈 Weekly Trend — Actuals vs Forecast")
+
+lookback_weeks = 26
+recent_hist = weekly_df.tail(lookback_weeks).copy()
+
+fig1, ax1 = plt.subplots(figsize=(11, 4))
+ax1.plot(recent_hist["week_end"], recent_hist["tx_count"], marker="o", linewidth=1.5, label="Actual Transactions")
+ax1.plot(future_only["week_end"], future_only["pred_tx"], marker="x", linewidth=2.0, label="Forecast Transactions")
+if {"pred_low", "pred_high"}.issubset(future_only.columns):
+    ax1.fill_between(future_only["week_end"], future_only["pred_low"], future_only["pred_high"], alpha=0.2, label="Confidence band")
+ax1.set_xlabel("Week Ending (Sundays)")
+ax1.set_ylabel("Transactions")
+ax1.grid(True)
+ax1.legend(loc="upper left")
+st.pyplot(fig1, clear_figure=True)
+
+# -----------------------------
+# Plot 2: Cash Needs — upcoming payout (USD millions; y-axis hidden)
+# -----------------------------
+st.subheader("💵 Cash Needs — Upcoming Payout (USD Millions)")
+
+cash_tbl = future_only.copy()
+if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
+    cash_tbl["payout_usd_mn"] = cash_tbl["pred_value_mn_mxn"] / cash_tbl["fx_assumed"]
+else:
+    cash_tbl["payout_usd_mn"] = np.nan
+
+fig2, ax2 = plt.subplots(figsize=(11, 3.8))
+x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
+ax2.bar(x_labels, cash_tbl["payout_usd_mn"])
+
+# Hide y-axis labels and ticks
+ax2.set_yticks([])
+ax2.set_ylabel("")
+ax2.grid(False)
+ax2.set_xlabel("Week Ending (Sundays)")
+
+# Labels on bars
+vals = cash_tbl["payout_usd_mn"]
+y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
+for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
+    if pd.notna(y):
+        ax2.text(i, y + y_offset, f"{y:,.0f} M", ha="center", va="bottom", fontsize=9, weight="bold")
+
+st.pyplot(fig2, clear_figure=True)
+
+st.caption(
+    "Notes: Total value = predicted transactions × recent average ticket. "
+    "Holidays/payweeks reflect whether those days fall within each forecasted week."
+)
