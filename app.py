@@ -259,57 +259,36 @@ st.divider()
 # -----------------------------
 # Plot 1: Weekly Trend — last 26w actuals + forecast
 # -----------------------------
-st.subheader("📈 Weekly Trend — Actuals vs Forecast")
+# --- Cash Needs — Upcoming Payout (USD, millions) ---
 
-lookback_weeks = 26
-recent_hist = weekly_df.tail(lookback_weeks).copy()
-
-fig1, ax1 = plt.subplots(figsize=(11, 4))
-ax1.plot(recent_hist["week_end"], recent_hist["tx_count"], marker="o", linewidth=1.5, label="Actual Transactions")
-ax1.plot(future_only["week_end"], future_only["pred_tx"], marker="x", linewidth=2.0, label="Forecast Transactions")
-if {"pred_low", "pred_high"}.issubset(future_only.columns):
-    ax1.fill_between(future_only["week_end"], future_only["pred_low"], future_only["pred_high"], alpha=0.2, label="Confidence band")
-ax1.set_xlabel("Week Ending (Sundays)")
-ax1.set_ylabel("Transactions")
-ax1.grid(True)
-ax1.legend(loc="upper left")
-st.pyplot(fig1, clear_figure=True)
-
-# -----------------------------
-# Plot 2: Cash Needs — upcoming payout (USD millions; y-axis hidden)
-# -----------------------------
 st.subheader("Cash Needs — Upcoming Payout (USD, millions)")
 
 cash_tbl = future_only.copy()
-if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
-    cash_tbl["payout_usd_mn"] = cash_tbl["pred_value_mn_mxn"] / cash_tbl["fx_assumed"]
-else:
-    cash_tbl["payout_usd_mn"] = np.nan
+
+# Use the SAME normalization you use for the KPI:
+# pred_value_mn_mxn is in "thousands of millions" -> divide by 1000 to get millions MXN
+# then divide by FX to get millions USD
+SCALE_K = 1000.0
+cash_tbl["payout_usd_mn"] = (cash_tbl["pred_value_mn_mxn"] / SCALE_K) / cash_tbl["fx_assumed"]
 
 fig2, ax2 = plt.subplots(figsize=(11, 3.8))
 x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
-ax2.bar(x_labels, cash_tbl["payout_usd_mn"])
-ax2.set_yticks([])
-ax2.set_xlabel("Week Ending (Sundays)")
-ax2.set_ylabel("USD (mn)")
-
-
 vals = cash_tbl["payout_usd_mn"]
+
+ax2.bar(x_labels, vals)
+
+# Y-axis: show numbers in millions (no unit suffix per tick; the axis label carries the unit)
+ax2.set_ylabel("USD (M)")
+ax2.yaxis.set_major_locator(MaxNLocator(nbins=6))
+ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, pos: f"{v:,.0f}"))
+
+# Bar labels: also in millions, short and consistent with KPI (e.g., 326.3 M)
 y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
-
-def format_usd_label(val_mn):
-    """Format USD value in millions or billions (short)."""
-    if val_mn >= 1000:   # 1000 M = 1 B
-        return f"{val_mn/1000:.1f} B"
-    else:
-        return f"{val_mn:.1f} M"
-
-for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
+for i, y in enumerate(vals):
     if pd.notna(y):
-        ax2.text(i, y + y_offset, format_usd_label(y), ha="center", va="bottom", fontsize=9, weight="bold")
+        ax2.text(i, y + y_offset, f"{y:,.1f} M", ha="center", va="bottom", fontsize=9, weight="bold")
 
-
-
+ax2.set_xlabel("Week Ending (Sundays)")
 st.pyplot(fig2, clear_figure=True)
 
 st.caption(
