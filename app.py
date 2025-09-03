@@ -241,7 +241,7 @@ st.pyplot(fig1, clear_figure=True)
 # -----------------------------
 # Plot 2: Cash Needs — upcoming payout (USD millions; y-axis hidden)
 # -----------------------------
-st.subheader("💵 Cash Needs — Upcoming Payout (USD Millions)")
+st.subheader("Cash Needs — Upcoming Payout (USD Millions)")
 
 cash_tbl = future_only.copy()
 if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
