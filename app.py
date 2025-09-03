@@ -27,16 +27,13 @@ def fmt_int(x):
     except Exception:
         return "-"
 
-def fmt_mxn_billions(mxn_val):
-    """
-    Takes raw MXN value → returns billions (B MXN).
-    Example: 6_127_746_000 → $6.1 B MXN
-    """
+def fmt_mxn_billions_from_mn(mn_mxn):
+    """Input: MXN in millions. Output: '$x.xx B MXN'."""
     try:
-        if pd.isna(mxn_val):
+        if pd.isna(mn_mxn):
             return "-"
-        mxn_b = float(mxn_val) / 1_000_000_000   # raw → billions
-        return f"${mxn_b:,.2f} B MXN"
+        mxn_bn = float(mn_mxn) / 1_000   # millions → billions
+        return f"${mxn_bn:,.2f} B MXN"
     except Exception:
         return "-"
 
@@ -69,17 +66,13 @@ def fmt_mxn_compact_from_mn(mn_mxn):
         return "-"
 
         
-def fmt_usd_millions_from_mxn(mxn_val, fx):
-    """
-    Takes raw MXN value + FX → returns millions of USD.
-    Example: 6,127,746 MXN at 18.77 → $326.3 M USD
-    """
+def fmt_usd_millions_from_mn_and_fx(mn_mxn, fx):
+    """Input: MXN in millions + FX (MXN per USD). Output: '$x.x M USD'."""
     try:
-        if pd.isna(mxn_val) or pd.isna(fx) or float(fx) == 0:
+        if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
             return "-"
-        usd_total = float(mxn_val) / float(fx)      # raw USD
-        usd_m = usd_total / 1_000_000               # → millions
-        return f"${usd_m:,.1f} M USD"
+        usd_mn = float(mn_mxn) / float(fx)  # millions of USD
+        return f"${usd_mn:,.1f} M USD"
     except Exception:
         return "-"
 
@@ -228,7 +221,8 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.metric("Transactions (M)", fmt_count_millions(next_row.get("pred_tx"), 1))
 with c2:
-    st.metric("Value (MXN)", fmt_mxn_billions(next_row.get("pred_value_mn_mxn")))
+       st.metric("Value (MXN)", fmt_mxn_billions_from_mn(next_row.get("pred_value_mn_mxn")))
+
 
     
 with c3:
