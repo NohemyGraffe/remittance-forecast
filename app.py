@@ -238,37 +238,25 @@ with c8:
     st.metric("FX Assumed (MXN per USD)", f"{fx_assumed:,.2f}" if pd.notna(fx_assumed) else "—")
 
 
-# --- Average ticket: display-only fix (no changes to model/KPIs/chart) ---
-try:
-    SCALE_K = 1000.0  # current forecast stores "thousands of millions" MXN
+# --- Average ticket (implied only, clean display) ---
+if {"pred_value_mn_mxn", "fx_assumed", "pred_tx"}.issubset(next_row.index):
+    try:
+        SCALE_K = 1000.0  # dataset is in "thousands of millions" MXN
 
-    # 1) Show model's ticket (scaled for display)
-    if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
-        model_ticket_disp = float(next_row["avg_ticket_mxn_used"]) / SCALE_K
-        st.caption(f"Avg ticket (model param): ${model_ticket_disp:,.0f} MXN")
-
-    # 2) Implied ticket from normalized totals (matches how you want to reason about it)
-    if {"pred_value_mn_mxn", "fx_assumed", "pred_tx"}.issubset(next_row.index):
         tx = float(next_row["pred_tx"])
         fx = float(next_row["fx_assumed"])
-        # normalize "thousands of millions" → "millions" for the math
+        # Normalize: thousands of millions -> millions
         mxn_mn_norm = float(next_row["pred_value_mn_mxn"]) / SCALE_K
         usd_mn_norm = mxn_mn_norm / fx if fx > 0 else float("nan")
 
         avg_ticket_mxn = (mxn_mn_norm * 1_000_000) / max(tx, 1.0)
         avg_ticket_usd = (usd_mn_norm * 1_000_000) / max(tx, 1.0)
 
-        st.caption(f"Avg ticket (implied): ${avg_ticket_mxn:,.0f} MXN  (~${avg_ticket_usd:,.0f} USD)")
-
-        # Optional consistency nudge vs. model param (after scaling)
-        if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
-            model_ticket_norm = float(next_row["avg_ticket_mxn_used"]) / SCALE_K
-            if model_ticket_norm > 0:
-                diff = abs(avg_ticket_mxn - model_ticket_norm) / model_ticket_norm
-                if diff > 0.5:
-                    st.caption("⚠️ Model ticket and implied ticket differ a lot — units/FX may need review.")
-except Exception:
-    pass
+        st.caption(
+            f"Avg ticket: ${avg_ticket_mxn:,.0f} MXN  (≈ {avg_ticket_usd:,.0f} USD)"
+        )
+    except Exception:
+        pass
 
 
 
