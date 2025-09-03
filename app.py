@@ -136,6 +136,10 @@ with st.sidebar:
 # Clear caches if user clicked refresh
 if refresh:
     st.cache_data.clear()
+    try:
+        st.cache_resource.clear()  # clears any @st.cache_resource (e.g., models)
+    except Exception:
+        pass
 
 # -----------------------------
 # Load data (one source)
@@ -193,15 +197,17 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.metric("Total Transactions (predicted)", fmt_int(next_row.get("pred_tx")))
 with c2:
-    st.metric("Total Value (MXN)", fmt_mxn_billions_from_millions(next_row.get("pred_value_mn_mxn")))
+    st.metric("Total Value (MXN, billions)", fmt_mxn_billions_from_millions(next_row.get("pred_value_mn_mxn")))
 with c3:
-    st.metric("Total Value (USD)", fmt_usd_from_millions_and_fx(next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")))
+    st.metric("Total Value (USD, millions)", fmt_usd_from_millions_and_fx(next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")))
 with c4:
-    if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
-        rel = (next_row["pred_high"] - next_row["pred_low"]) / max(next_row["pred_tx"], 1.0)
-        st.metric("Uncertainty (± relative)", pct(rel / 2.0))
-    else:
-        st.metric("Uncertainty (± relative)", "—")
+    # was: if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
+     if {"pred_low", "pred_high", "pred_tx"}.issubset(future_only.columns):
+         rel = (next_row["pred_high"] - next_row["pred_low"]) / max(next_row["pred_tx"], 1.0)
+         st.metric("Uncertainty (± relative)", pct(rel / 2.0))
+     else:
+          st.metric("Uncertainty (± relative)", "—")
+
 
 c5, c6, c7, c8 = st.columns(4)
 with c5:
@@ -212,10 +218,25 @@ with c7:
     st.metric("MX Holiday in week?", "Yes" if int(next_row.get("is_holiday_mx", 0)) == 1 else "No")
 with c8:
     fx_assumed = next_row.get("fx_assumed", np.nan)
-    st.metric("FX Assumed (USD/MXN)", f"{fx_assumed:,.2f}" if pd.notna(fx_assumed) else "—")
+    # was: "FX Assumed (USD/MXN)"
+    st.metric("FX Assumed (MXN per USD)", f"{fx_assumed:,.2f}" if pd.notna(fx_assumed) else "—")
+
 
 if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
     st.caption(f"Avg ticket used: ${next_row['avg_ticket_mxn_used']:,.0f} MXN")
+
+# Sanity check: avg USD per transaction, catches unit/FX slips
+if {"pred_value_mn_mxn","fx_assumed","pred_tx"}.issubset(next_row.index):
+    try:
+        usd_mn = float(next_row["pred_value_mn_mxn"]) / float(next_row["fx_assumed"])
+        avg_tx_usd = (usd_mn * 1_000_000) / max(float(next_row["pred_tx"]), 1.0)
+        if 50 <= avg_tx_usd <= 1000:
+            st.caption(f"Avg per transaction (sanity): ${avg_tx_usd:,.0f} USD")
+        else:
+            st.caption("⚠️ Avg per transaction looks off; recheck units/FX.")
+    except Exception:
+        pass
+
 
 st.divider()
 
@@ -241,7 +262,7 @@ st.pyplot(fig1, clear_figure=True)
 # -----------------------------
 # Plot 2: Cash Needs — upcoming payout (USD millions; y-axis hidden)
 # -----------------------------
-st.subheader("Cash Needs — Upcoming Payout (USD Millions)")
+st.subheader("Cash Needs — Upcoming Payout (USD, millions)")
 
 cash_tbl = future_only.copy()
 if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
@@ -252,18 +273,23 @@ else:
 fig2, ax2 = plt.subplots(figsize=(11, 3.8))
 x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
 ax2.bar(x_labels, cash_tbl["payout_usd_mn"])
-ax2.set_yticks([]); ax2.set_ylabel(""); ax2.grid(False)
+ax2.set_yticks([])
 ax2.set_xlabel("Week Ending (Sundays)")
+ax2.set_ylabel("USD (mn)")
+
 
 vals = cash_tbl["payout_usd_mn"]
 y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
 for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
     if pd.notna(y):
-        ax2.text(i, y + y_offset, f"{y:,.0f} M", ha="center", va="bottom", fontsize=9, weight="bold")
+        ax2.text(i, y + y_offset, f"{y:,.0f}", ha="center", va="bottom", fontsize=9, weight="bold")
+
 
 st.pyplot(fig2, clear_figure=True)
 
 st.caption(
-    "Notes: Total value = predicted transactions × recent average ticket. "
+    "Notes: Total value (MXN, mn) = predicted transactions × recent avg ticket (MXN); "
+    "Value (USD, mn) = Value (MXN, mn) ÷ FX (MXN per USD). "
     "Holidays/payweeks reflect whether those days fall within each forecasted week."
 )
+
