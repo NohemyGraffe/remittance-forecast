@@ -27,34 +27,32 @@ def fmt_int(x):
     except Exception:
         return "-"
 
-def fmt_mxn_billions_from_mn(mn_mxn):
-    """Input: MXN millions -> output: formatted 'B MXN' string."""
+def fmt_mxn_billions_from_millions(mn_mxn):
+    if pd.isna(mn_mxn):
+        return "-"
+    b = (float(mn_mxn) * 1_000_000) / 1_000_000_000
+    return f"${b:,.2f} B MXN"
+
+def fmt_usd_from_millions_and_fx(mn_mxn, fx):
+    if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
+        return "-"
+    usd = (float(mn_mxn) * 1_000_000) / float(fx)
+    return f"${usd/1_000_000:,.2f} USD"
+
+def pct(x):
+    if pd.isna(x):
+        return "-"
     try:
-        b = float(mn_mxn) / 1_000.0  # 1,000 mn = 1 bn
-        return f"${b:,.2f} B MXN"
+        return f"{float(x)*100:.1f}%"
     except Exception:
         return "-"
 
-def fmt_usd_millions_from_mxn_mn(mn_mxn, fx_mxn_per_usd):
-    """Input: MXN millions & FX (MXN/USD) -> USD millions string."""
-    try:
-        fx = float(fx_mxn_per_usd)
-        if fx <= 0:
-            return "-"
-        usd_mn = float(mn_mxn) / fx
-        return f"${usd_mn:,.2f} USD (mn)"
-    except Exception:
-        return "-"
-
-def fmt_pct_rel(low, mid, high):
-    try:
-        span = float(high) - float(low)
-        denom = max(float(mid), 1.0)
-        return f"{(span / denom / 2.0)*100:.1f}%"
-    except Exception:
-        return "—"
-
-
+def week_range_label(week_end_ts: pd.Timestamp) -> str:
+    end = pd.Timestamp(week_end_ts).normalize()
+    start = end - pd.Timedelta(days=6)
+    start_str = start.strftime("%b %-d, %Y") if os.name != "nt" else start.strftime("%b %#d, %Y")
+    end_str   = end.strftime("%b %-d, %Y")   if os.name != "nt" else end.strftime("%b %#d, %Y")
+    return f"{start_str} – {end_str}"
 
 # -----------------------------
 # Streamlit config
@@ -193,18 +191,15 @@ st.subheader(f"📅 Next Forecasted Week — {range_text}")
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    st.metric("Transactions (count)", fmt_int(next_row.get("pred_tx")))
+    st.metric("Total Transactions (predicted)", fmt_int(next_row.get("pred_tx")))
 with c2:
-    st.metric("Value (MXN, billions)", fmt_mxn_billions_from_mn(next_row.get("pred_value_mn_mxn")))
+    st.metric("Total Value (MXN)", fmt_mxn_billions_from_millions(next_row.get("pred_value_mn_mxn")))
 with c3:
-    st.metric("Value (USD, millions)", fmt_usd_millions_from_mxn_mn(
-        next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")
-    ))
+    st.metric("Total Value (USD)", fmt_usd_from_millions_and_fx(next_row.get("pred_value_mn_mxn"), next_row.get("fx_assumed")))
 with c4:
     if {"pred_low", "pred_high", "pred_tx"}.issubset(fc.columns):
-        st.metric("Uncertainty (± relative)", fmt_pct_rel(
-         next_row["pred_low"], next_row["pred_tx"], next_row["pred_high"]))
-
+        rel = (next_row["pred_high"] - next_row["pred_low"]) / max(next_row["pred_tx"], 1.0)
+        st.metric("Uncertainty (± relative)", pct(rel / 2.0))
     else:
         st.metric("Uncertainty (± relative)", "—")
 
@@ -221,19 +216,6 @@ with c8:
 
 if "avg_ticket_mxn_used" in fc.columns and pd.notna(next_row.get("avg_ticket_mxn_used")):
     st.caption(f"Avg ticket used: ${next_row['avg_ticket_mxn_used']:,.0f} MXN")
-
-if {"pred_value_mn_mxn", "fx_assumed", "pred_tx"}.issubset(next_row.index) and \
-   pd.notna(next_row["pred_value_mn_mxn"]) and pd.notna(next_row["fx_assumed"]) and pd.notna(next_row["pred_tx"]):
-    try:
-        usd_mn = float(next_row["pred_value_mn_mxn"]) / float(next_row["fx_assumed"])
-        avg_tx_usd = (usd_mn * 1_000_000) / float(next_row["pred_tx"])
-        if 50 <= avg_tx_usd <= 1000:  # guardrail
-            st.caption(f"Avg per transaction (sanity): ${avg_tx_usd:,.0f} USD")
-        else:
-            st.caption("⚠️ Avg per transaction looks off; check units & FX.")
-    except Exception:
-        pass
-
 
 st.divider()
 
@@ -259,7 +241,7 @@ st.pyplot(fig1, clear_figure=True)
 # -----------------------------
 # Plot 2: Cash Needs — upcoming payout (USD millions; y-axis hidden)
 # -----------------------------
-st.subheader("Cash Needs — Upcoming Payout (USD, millions)")
+st.subheader("Cash Needs — Upcoming Payout (USD Millions)")
 
 cash_tbl = future_only.copy()
 if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
@@ -270,18 +252,16 @@ else:
 fig2, ax2 = plt.subplots(figsize=(11, 3.8))
 x_labels = cash_tbl["week_end"].dt.strftime("%Y-%m-%d")
 ax2.bar(x_labels, cash_tbl["payout_usd_mn"])
+ax2.set_yticks([]); ax2.set_ylabel(""); ax2.grid(False)
 ax2.set_xlabel("Week Ending (Sundays)")
-ax2.set_ylabel("USD (mn)")
-ax2.grid(False)
 
 vals = cash_tbl["payout_usd_mn"]
-y_offset = (np.nanmax(vals) * 0.01) if np.isfinite(np.nanmax(vals)) else 0.02
+y_offset = max(vals.max() * 0.01, 0.02) if pd.notna(vals.max()) else 0.02
 for i, (x, y) in enumerate(zip(range(len(x_labels)), vals)):
     if pd.notna(y):
-        ax2.text(i, y + y_offset, f"{y:,.0f}", ha="center", va="bottom", fontsize=9, weight="bold")
+        ax2.text(i, y + y_offset, f"{y:,.0f} M", ha="center", va="bottom", fontsize=9, weight="bold")
 
 st.pyplot(fig2, clear_figure=True)
-
 
 st.caption(
     "Notes: Total value = predicted transactions × recent average ticket. "
