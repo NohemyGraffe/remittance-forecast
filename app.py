@@ -32,8 +32,18 @@ def fmt_mxn_billions_from_mn(mn_mxn):
     try:
         if pd.isna(mn_mxn):
             return "-"
-        mxn_bn = float(mn_mxn) / 1_000   # millions → billions
+        mxn_bn = float(mn_mxn) / 1_000  # millions → billions
         return f"${mxn_bn:,.2f} B MXN"
+    except Exception:
+        return "-"
+
+def fmt_usd_millions_from_mn_and_fx(mn_mxn, fx):
+    """Input: MXN in millions + FX (MXN per USD). Output: '$x.x M USD'."""
+    try:
+        if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) <= 0:
+            return "-"
+        usd_mn = float(mn_mxn) / float(fx)  # USD in millions
+        return f"${usd_mn:,.1f} M USD"
     except Exception:
         return "-"
 
@@ -55,17 +65,6 @@ def week_range_label(week_end_ts: pd.Timestamp) -> str:
 def fmt_count_millions(n, decimals=1):
     try:
         return f"{float(n)/1_000_000:.{decimals}f}M"
-    except Exception:
-        return "-"
-
-        
-def fmt_usd_millions_from_mn_and_fx(mn_mxn, fx):
-    """Input: MXN in millions + FX (MXN per USD). Output: '$x.x M USD'."""
-    try:
-        if pd.isna(mn_mxn) or pd.isna(fx) or float(fx) == 0:
-            return "-"
-        usd_mn = float(mn_mxn) / float(fx)  # millions of USD
-        return f"${usd_mn:,.1f} M USD"
     except Exception:
         return "-"
 
@@ -219,7 +218,7 @@ with c2:
 
     
 with c3:
-    st.metric("Value (USD)", fmt_usd_millions_from_mxn(
+    st.metric("Value (USD)", fmt_usd_millions_from_mn_and_fx(
         next_row.get("pred_value_mn_mxn"),
         next_row.get("fx_assumed")
     ))
