@@ -27,11 +27,18 @@ def fmt_int(x):
     except Exception:
         return "-"
 
-def fmt_mxn_billions_from_millions(mn_mxn):
-    if pd.isna(mn_mxn):
+def fmt_mxn_billions(mxn_val):
+    """
+    Takes raw MXN value → returns billions (B MXN).
+    Example: 6_127_746_000 → $6.1 B MXN
+    """
+    try:
+        if pd.isna(mxn_val):
+            return "-"
+        mxn_b = float(mxn_val) / 1_000_000_000   # raw → billions
+        return f"${mxn_b:,.2f} B MXN"
+    except Exception:
         return "-"
-    b = (float(mn_mxn) * 1_000_000) / 1_000_000_000
-    return f"${b:,.2f} B MXN"
 
 def pct(x):
     if pd.isna(x):
@@ -62,12 +69,17 @@ def fmt_mxn_compact_from_mn(mn_mxn):
         return "-"
 
         
-def fmt_usd_from_mxn_millions(mxn_millions, fx):
+def fmt_usd_millions_from_mxn(mxn_val, fx):
+    """
+    Takes raw MXN value + FX → returns millions of USD.
+    Example: 6,127,746 MXN at 18.77 → $326.3 M USD
+    """
     try:
-        if pd.isna(mxn_millions) or pd.isna(fx) or float(fx) == 0:
+        if pd.isna(mxn_val) or pd.isna(fx) or float(fx) == 0:
             return "-"
-        usd_millions = float(mxn_millions) / float(fx)
-        return f"${usd_millions:,.1f} M USD"
+        usd_total = float(mxn_val) / float(fx)      # raw USD
+        usd_m = usd_total / 1_000_000               # → millions
+        return f"${usd_m:,.1f} M USD"
     except Exception:
         return "-"
 
@@ -216,13 +228,14 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.metric("Transactions (M)", fmt_count_millions(next_row.get("pred_tx"), 1))
 with c2:
-    st.metric("Value (MXN)", fmt_mxn_compact_from_mn(next_row.get("pred_value_mn_mxn")))
+    st.metric("Value (MXN)", fmt_mxn_billions(next_row.get("pred_value_mn_mxn")))
+
     
 with c3:
-  st.metric("Value (USD)", fmt_usd_from_mxn_millions(
-    next_row.get("pred_value_mn_mxn"),
-    next_row.get("fx_assumed")
-))
+    st.metric("Value (USD)", fmt_usd_millions_from_mxn(
+        next_row.get("pred_value_mn_mxn"),
+        next_row.get("fx_assumed")
+    ))
 
 
 with c4:
