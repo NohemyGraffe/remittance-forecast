@@ -224,7 +224,7 @@ with c4:
          rel = (next_row["pred_high"] - next_row["pred_low"]) / max(next_row["pred_tx"], 1.0)
          st.metric("Uncertainty (± relative)", pct(rel / 2.0))
      else:
-          st.metric("Uncertainty (± relative)", "—")
+          st.metric("Forecast margin of error", "—")
 
 
 c5, c6, c7, c8 = st.columns(4)
