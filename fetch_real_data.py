@@ -18,9 +18,32 @@ import pandas as pd
 API_BASE = "https://www.banxico.org.mx/SieAPIRest/service/v1/series"
 
 # >>> HARD-CODED FOR LOCAL TESTING (replace/rotate later) <<<
-token = DEFAULT_BANXICO_TOKEN
 DEFAULT_SPEI_COUNT_ID = "SF316454"   # Number of transactions (daily)
 DEFAULT_SPEI_VALUE_ID = "SF316455"   # Value of transactions (millions MXN, daily)
+
+def fetch_weekly_from_banxico(
+    start="2018-01-01",
+    end=None,
+    token=None,
+    count_id="SF316454",
+    value_id="SF316455",
+    verbose=False,
+):
+    """
+    Returns a fresh weekly DataFrame with columns:
+    week_end, tx_count, value_mn_mxn, avg_ticket_mxn, fx_rate
+    """
+    from datetime import date
+    end = end or date.today().isoformat()
+
+    if token is None:
+        token = os.getenv("BANXICO_TOKEN") or os.getenv("DEFAULT_BANXICO_TOKEN")
+    if not token:
+        raise RuntimeError("Banxico token missing. Pass token=... or set in Streamlit secrets/env.")
+
+    daily = fetch_daily(token, count_id, value_id, start, end, v=verbose)
+    return to_weekly(daily)
+
 # <<< ---------------------------------------------------- >>>
 
 def _log(msg, v): 
@@ -146,4 +169,5 @@ def fetch_weekly_from_banxico(
 
 if __name__ == "__main__":
     main()
+
 
