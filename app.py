@@ -68,8 +68,8 @@ def fmt_count_millions(n, decimals=1):
 # -----------------------------
 # Streamlit config
 # -----------------------------
-st.set_page_config(page_title="Remittance Forecast (Weekly)", layout="wide")
-st.title("Remittance Forecast — Weekly (Business View)")
+st.set_page_config(page_title="Remittance forecast (Weekly)", layout="wide")
+st.title("Remittance forecast - weekly (Business view)")
 st.caption(
     "This dashboard shows a weekly cash & volume forecast using a domestic transfer proxy (SPEI) "
     "with calendar and FX effects. It’s designed for business users. Technical details and model "
@@ -202,7 +202,7 @@ next_row = future_only.iloc[0]
 # KPI cards
 # -----------------------------
 range_text = week_range_label(next_row["week_end"])
-st.subheader(f"📅 Next Forecasted Week — {range_text}")
+st.subheader(f"📅 Next forecasted week - {range_text}")
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
@@ -263,9 +263,9 @@ if {"pred_value_mn_mxn", "fx_assumed", "pred_tx"}.issubset(next_row.index):
 st.divider()
 
 # -----------------------------
-# Plot 1: Weekly Trend — last 26w actuals + forecast
+# Plot 1: Weekly trend — last 26w actuals + forecast
 # -----------------------------
-st.subheader("📈 Weekly Trend — Actuals vs Forecast")
+st.subheader("📈 Weekly trend - Actuals vs Forecast")
 
 lookback_weeks = 26
 recent_hist = weekly_df.tail(lookback_weeks).copy()
@@ -285,15 +285,30 @@ ax1.plot(
     marker="x", linewidth=2.0,
     label="Forecast Transactions"
 )
+# Confidence band: shaded area if 2+ points, else an error bar for 1 point
 if {"pred_low", "pred_high"}.issubset(future_only.columns):
-    ax1.fill_between(
-        future_only["week_end"],
-        future_only["pred_low"] / 1_000_000,
-        future_only["pred_high"] / 1_000_000,
-        alpha=0.2, label="Confidence band"
-    )
+    low  = future_only["pred_low"]  / 1_000_000
+    high = future_only["pred_high"] / 1_000_000
 
-ax1.set_xlabel("Week Ending (Sundays)")
+    if len(future_only) >= 2:
+        ax1.fill_between(
+            future_only["week_end"], low, high,
+            alpha=0.2, label="Confidence band"
+        )
+    else:
+        # Single forecast point → use asymmetric error bar
+        y0 = (future_only["pred_tx"] / 1_000_000).iloc[0]
+        lo = y0 - low.iloc[0]      # distance from mean down to low
+        hi = high.iloc[0] - y0     # distance from mean up to high
+        ax1.errorbar(
+            future_only["week_end"].iloc[0:1], [y0],
+            yerr=[[lo], [hi]],
+            fmt="none", capsize=4, linewidth=1.5,
+            label="Confidence band"
+        )
+
+
+ax1.set_xlabel("Week ending (Sundays)")
 ax1.set_ylabel("Transactions (M)")  # clearer, in millions
 ax1.grid(True)
 ax1.legend(loc="upper left")
@@ -301,12 +316,12 @@ ax1.legend(loc="upper left")
 st.pyplot(fig1, clear_figure=True)
 
 # -----------------------------
-# Plot 2: Cash Needs — upcoming payout (USD, millions)
+# Plot 2: Cash needs - upcoming payout (USD, millions)
 # -----------------------------
 
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
-st.subheader("Cash Needs — Upcoming Payout (USD, millions)")
+st.subheader("Cash needs - upcoming payout (USD, millions)")
 
 cash_tbl = future_only.copy()
 if {"pred_value_mn_mxn", "fx_assumed"}.issubset(cash_tbl.columns):
@@ -324,7 +339,7 @@ bars = ax2.bar(x_labels, vals)
 
 # Axis label in millions, ticks compact
 ax2.set_ylabel("USD (M)")
-ax2.set_xlabel("Week Ending (Sundays)")
+ax2.set_xlabel("Week ending (Sundays)")
 ax2.yaxis.set_major_locator(MaxNLocator(nbins=6))
 ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, pos: f"{v:,.0f}"))
 
