@@ -78,7 +78,6 @@ To assess the accuracy of this forecast engine, I ran a backtest on the weekly d
 
 ## Important notes
 
-- Dataset used is **Banxico’s SPEI domestic transfer data**, applied here only as a proxy for remittance flows.  
 - Actual **US→MX remittance data** is not public at weekly frequency.  
 - Forecasts incorporate **calendar effects** (payweeks, holidays) and **FX regressors**, which helps capture realistic flow patterns.  
 - While the absolute effect measured here applies to SPEI transfers, the **same methodology** could be applied to true remittance data.  
