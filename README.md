@@ -1,9 +1,24 @@
 
 # Remittance forecast prototype
 
-👉 **Live Demo:** https://remittance-forecast-mx.streamlit.app/ 
+👉 **Streamlit App:** https://remittance-forecast-mx.streamlit.app/ 
 
 This model forecasts **weekly transaction flows** with ~**6% error** on backtests.
+
+### Sample outputs
+
+**1. Dashboard KPIs (business overview)**  
+Headline metrics for the next forecasted week: transactions, value in MXN/USD, FX rate, error margin, and calendar effects.  
+![KPI dashboard](kpis.png)
+
+**2. Forecast vs actuals (model performance)**  
+Historical actuals compared to forecasts with confidence intervals.
+![Weekly forecast](weekly_forecast.png)
+
+**3. Upcoming payout needs (business application)**  
+Forecast translated into USD liquidity requirements, supporting treasury and cash management decisions.  
+![Cash needs](cash_needs.png)
+
 
 ---
 
