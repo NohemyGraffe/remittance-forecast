@@ -1,11 +1,13 @@
 
 # Remittance forecast prototype
 
+👉 **Live Demo:** https://remittance-forecast-mx.streamlit.app/ 
+
 This model forecasts **weekly transaction flows** with ~**6% error** on backtests.
 
 ---
 
-## 💡 Potential benefits for a remittance company
+## Potential benefits for a remittance company
 
 Although this project uses **proxy data** (Banxico SPEI transfers) instead of true remittance inflows, it demonstrates how a forecasting system can deliver real value to a remittance company:
 
@@ -37,18 +39,25 @@ This project forecasts **weekly remittance-like transactions (count and value)**
 To assess the accuracy of this forecast engine, I ran a backtest on the weekly dataset:
 
 - **Setup** – Last 8 weeks of data held out, model trained on remaining history, forecasts compared against actuals.
+  
+
+![Backtest results](actual%20vs%20predicted.png)
+
 
 ### Transaction volume (weekly count of transfers)
 - **MAE:** ~7 million transactions  
 - **MAPE:** ~6.8%  
   *On average, weekly forecasts differ from actuals by ~6–7%.*
 
-  
+  ![](volume-accuracy.png)
+
 
 ### Transaction value (MXN, millions)
 - **MAE:** ~352,000 million MXN  
 - **MAPE:** ~5.9%  
   *Absolute errors are large because totals are in trillions of MXN, but the **percentage error** shows the model tracks value dynamics closely.*
+
+![](value-accuracy.png)
 
 ---
 
